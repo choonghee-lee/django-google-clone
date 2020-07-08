@@ -10,8 +10,12 @@ def index_page(request):
 
 def search_page(request):
     term = request.GET.get('term', 'google')
+    searchType = request.GET.get('type', 'sites')
     return render(
         request,
         'search.html',
-        {'term': term}
+        {
+            'term': term,
+            'type': searchType,
+        }
     )

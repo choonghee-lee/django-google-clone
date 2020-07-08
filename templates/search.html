@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}{{term}} - Google{% endblock title %}
+
+{% block content %}
+    <div class="wrapper">
+        <div class="header">
+            <div class="headerContent">
+                <div class="logoContainer">
+                    <a href="{% url 'index' %}">
+                        <img src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png">
+                    </a>
+                </div>
+
+                <div class="searchContainer">
+                    <form action="" method="GET">
+                        <div class="searchBarContainer">
+                            <input class="searchBox" type="text" name="term">
+                            <button class="searchButton">
+                                <img src="{% static 'img/search.png' %}"/>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="tabsContainer">
+                <ul class="tabList">
+                    <li class="{% if type == "sites" %}active{% else %}{% endif %}">
+                        <a href="?term={{term}}&type=sites">
+                            Sites
+                        </a>
+                    </li>
+                    <li class="{% if type == "images" %}active{% else %}{% endif %}">
+                        <a href="?term={{term}}&type=images">
+                            Images
+                        </a>
+                    </li>
+                </ul>
+            </div>  
+        </div>
+    </div>
+{% endblock content %}
