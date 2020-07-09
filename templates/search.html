@@ -17,7 +17,7 @@
                 <div class="searchContainer">
                     <form action="" method="GET">
                         <div class="searchBarContainer">
-                            <input class="searchBox" type="text" name="term">
+                            <input class="searchBox" type="text" name="term" value="{{term}}">
                             <button class="searchButton">
                                 <img src="{% static 'img/search.png' %}"/>
                             </button>
@@ -41,5 +41,37 @@
                 </ul>
             </div>  
         </div>
+
+        <div class="mainResultsSection">
+            <p class="resultsCount">{{links_count}} results found</p>
+
+            <div class="siteResults">
+                {% for link in links %}
+                    <div class="resultContainer">
+                        <h3 class="title">
+                            <a class="result" href="{{link.url}}">
+                                {% if link.title|length > 55 %}
+                                    {{link.title|slice:":55"}}...
+                                {% else %}
+                                    {{link.title}}
+                                {% endif %}
+                            </a>
+                        </h3>
+                        <span class="url">
+                            {{link.url}}
+                        </span>
+                        <span class="description">
+                            {% if link.description|length > 230 %}
+                                {{link.description|slice:":230"}}...
+                            {% else %}
+                                {{link.description}}
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
+
+        
 {% endblock content %}
