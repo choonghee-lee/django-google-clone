@@ -8,6 +8,12 @@ from .models import Site, Image
 
 
 class DomDocumentParser:
+    """
+    html 파서
+
+    url을 입력하면 필요한 내용을 파싱해준다.
+    """
+
     def get_links(self, url, href=''):
         links = []
         response = requests.get(url, headers={
@@ -43,6 +49,11 @@ found_images = []
 
 
 def insert_link(url, title, description, keywords):
+    """
+    데이터베이스에 사이트 정보 저장
+    """
+
+    # 중복 불가능
     if Site.objects.filter(url=url).exists():
         return
 
@@ -55,6 +66,9 @@ def insert_link(url, title, description, keywords):
 
 
 def insert_image(url, src, title, alt):
+    """
+    데이터베이스에 이미지 정보 저장
+    """
     if Image.objects.filter(image_url=src).exists():
         return
 
@@ -68,6 +82,12 @@ def insert_image(url, src, title, alt):
 
 
 def create_link(url, href):
+    """
+    relative url을 absolute url로 변경
+
+    ex)
+    //hello.com/ => http://hello.com/
+    """
     src = href
     parsed_url = urlparse(url)
     scheme = parsed_url.scheme
@@ -88,6 +108,10 @@ def create_link(url, href):
 
 
 def get_details(url):
+    """
+    url에 해당하는 웹페이지의 상세 정보를 찾아서
+    데이터베이스에 저장한다.
+    """
     global found_images
 
     parser = DomDocumentParser()
@@ -125,16 +149,9 @@ def get_details(url):
     images = parser.get_images(url)
     for image in images:
         try:
-            # print(image)
             src = image.attrs['src']
-            # print(src)
             title = image.attrs['title']
-            # print(title)
             alt = image.attrs['alt']
-            # print(alt)
-
-            # if title == '' and alt == '':
-            #     continue
 
             src = create_link(url, src)
             print(src)
@@ -149,7 +166,13 @@ def get_details(url):
             pass
 
 
-def refine_links(url, links):
+def crawl_links(url, links):
+    """
+    웹 크롤링
+
+    href를 통해 계속 크롤링한다.
+    거의 무한루프 상태에 빠지며, 서버에서 리커넥션을 할 것이다 ㅋㅋ..
+    """
     global crawled
     global crawling
 
@@ -174,6 +197,6 @@ def refine_links(url, links):
     crawling.pop(0)
 
     for site in crawling:
-        refine_links(site)
+        crawl_links(site)
 
     return refined_links
