@@ -1,0 +1,179 @@
+from urllib.request import urlopen
+from urllib.parse import urlparse
+from bs4 import BeautifulSoup
+import re
+import requests
+
+from .models import Site, Image
+
+
+class DomDocumentParser:
+    def get_links(self, url, href=''):
+        links = []
+        response = requests.get(url, headers={
+                                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'})
+        bs = BeautifulSoup(response.content, 'html.parser')
+        all_links = bs.find_all('a', href=re.compile(href))
+        for link in all_links:
+            links.append(link.attrs['href'])
+        return links
+
+    def get_title_tags(self, url):
+        response = requests.get(url, headers={
+                                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'})
+        bs = BeautifulSoup(response.content, 'html.parser')
+        return bs.find_all('title')
+
+    def get_meta_tags(self, url):
+        response = requests.get(url, headers={
+                                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'})
+        bs = BeautifulSoup(response.content, 'html.parser')
+        return bs.find_all('meta')
+
+    def get_images(self, url):
+        response = requests.get(url, headers={
+                                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'})
+        bs = BeautifulSoup(response.content, 'html.parser')
+        return bs.find_all('img')
+
+
+crawled = []
+crawling = []
+found_images = []
+
+
+def insert_link(url, title, description, keywords):
+    if Site.objects.filter(url=url).exists():
+        return
+
+    site = Site()
+    site.url = url
+    site.title = title
+    site.description = description
+    site.keyword = keywords
+    site.save()
+
+
+def insert_image(url, src, title, alt):
+    if Image.objects.filter(image_url=src).exists():
+        return
+
+    image = Image()
+    image.site_url = url
+    image.image_url = src
+    image.title = title
+    image.alt = alt
+
+    image.save()
+
+
+def create_link(url, href):
+    src = href
+    parsed_url = urlparse(url)
+    scheme = parsed_url.scheme
+    host = parsed_url.netloc
+    path = parsed_url.path
+
+    if src[:2] == "//":
+        src = scheme + ":" + src
+    elif src[:1] == "/":
+        src = scheme + "://" + host + src
+    elif src[:2] == './':
+        src = scheme + "://" + host + path + src[1:]
+    elif src[:3] == '../':
+        src = scheme + "://" + host + "/" + src
+    elif src[:5] != "https" and src[:4] != "http":
+        src = scheme + "://" + host + "/" + src
+    return src
+
+
+def get_details(url):
+    global found_images
+
+    parser = DomDocumentParser()
+    titles = parser.get_title_tags(url)
+    if titles == False:
+        return
+
+    title = titles[0].text
+    title = title.replace("\n", "")
+    if title == "":
+        return
+
+    description = ""
+    keywords = ""
+    metas = parser.get_meta_tags(url)
+    for meta in metas:
+        try:
+            if meta.attrs['name'] == "description":
+                description = meta.attrs['content']
+
+            if meta.attrs['name'] == "keywords":
+                keywords = meta.attrs['content']
+        except KeyError:
+            pass
+
+    description = description.replace("\n", "")
+    keywords = keywords.replace("\n", "")
+
+    insert_link(url, title, description, keywords)
+    print("SITE:", url)
+
+    src = ""
+    title = ""
+    alt = ""
+    images = parser.get_images(url)
+    for image in images:
+        try:
+            # print(image)
+            src = image.attrs['src']
+            # print(src)
+            title = image.attrs['title']
+            # print(title)
+            alt = image.attrs['alt']
+            # print(alt)
+
+            # if title == '' and alt == '':
+            #     continue
+
+            src = create_link(url, src)
+            print(src)
+
+            if src not in found_images:
+                found_images.append(src)
+
+                # Insert the image
+                insert_image(url, src, title, alt)
+                print("Image:", src)
+        except KeyError:
+            pass
+
+
+def refine_links(url, links):
+    global crawled
+    global crawling
+
+    refined_links = []
+    for href in links:
+        if '#' in href:
+            continue
+        elif 'javascript:' in href:
+            continue
+
+        href = create_link(url, href)
+
+        if href not in crawled:
+            crawled.append(href)
+            crawling.append(href)
+
+            # Insert href
+            get_details(href)
+
+        refined_links.append(href)
+
+    crawling.pop(0)
+
+    for site in crawling:
+        refine_links(site)
+
+    return refined_links
